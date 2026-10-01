@@ -1,0 +1,16 @@
+/.idea/.gitignore
+/.idea/copilot.data.migration.agent.xml
+/.idea/copilot.data.migration.ask.xml
+/.idea/copilot.data.migration.ask2agent.xml
+/.idea/copilot.data.migration.edit.xml
+/.idea/editor.xml
+/ejemplo.c
+/ejemplo.h
+/listasimple.c
+/listasimple.h
+/Makefile
+/.idea/misc.xml
+/path.c
+/path.h
+/Shellv4.c
+/.idea/vcs.xml
