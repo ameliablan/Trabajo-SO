@@ -26,25 +26,37 @@ struct COMANDO{
 
 /**************************SHELL**************************/
 
-static struct COMANDO C[]={
-   {"fin",Cmd_fin},
-   {"exit",Cmd_fin},
-   {"quit",Cmd_fin},
-   {"bye",Cmd_fin}, //AÑADIDO -> así bye funcionara igual que exit
-   {"date",Cmd_date},
-
-   {"pid",Cmd_pid},
+static struct COMANDO C[] = {
+   {"fin", Cmd_fin},
+   {"exit", Cmd_fin},
+   {"quit", Cmd_fin},
+   {"bye", Cmd_fin}, // Funcionara igual que exit
+   {"date", Cmd_date},
+   {"pid", Cmd_pid},
    {"pwd", Cmd_pwd},
-   {"chdir",Cmd_chdir},
-   {"autores",Cmd_autores},
-   {"exec",Cmd_exec},
-   {"pplano",Cmd_pplano},
-   {"splano",Cmd_splano},
-   {"path",Cmd_path},
-   {"importpath",Cmd_importpath},
-   {"where",Cmd_where},
-   {NULL,NULL},
-  };
+   {"chdir", Cmd_chdir},
+   {"autores", Cmd_autores},
+   {"exec", Cmd_exec},
+   {"pplano", Cmd_pplano},
+   {"splano", Cmd_splano},
+   {"path", Cmd_path},
+   {"importpath", Cmd_importpath},
+   {"where", Cmd_where},
+   {"sysinfo", Cmd_sysinfo},
+   {"open", Cmd_open},
+   {"close", Cmd_close},
+   {"listopen", Cmd_listopen},
+   {"help", Cmd_help},
+   {"dup", Cmd_dup},
+   {"lseek", Cmd_lseek},
+   {"readstr", Cmd_readstr},
+   {"writestr", Cmd_writestr},
+   {"makefile", Cmd_makefile},
+   {"makedir", Cmd_makedir},
+   {"delete", Cmd_delete},
+   /* Incluir funciones de list y deltree al implementarlas */
+   {NULL, NULL},
+};
 
 void DecidirComando (char *tr[])
 {
