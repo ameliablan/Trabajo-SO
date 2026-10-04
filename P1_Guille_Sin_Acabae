@@ -1,0 +1,421 @@
+#include <limits.h>
+#define DEFINE_COMMANDS          /* la tabla de comandos se define aqui */
+#include "commands.h"
+#include "p1.h"
+
+#define AUTOR1_NOMBRE "Guillermo Victor González Gómez"
+#define AUTOR1_LOGIN  "guillermo.gonzalez1@udc.es"
+#define AUTOR2_NOMBRE "<NOMBRE DEL SEGUNDO MIEMBRO>"
+#define AUTOR2_LOGIN  "<login>@udc.es"
+
+/* Lista de ficheros abiertos de la shell (global, la usan open/close/...) */
+static tListF openFiles;
+
+/*********************** FUNCIONES AUXILIARES ***********************/
+
+void AniadirAlPath(char *dir)
+{
+    if (dir == NULL)
+        PathPrint();
+    else if (PathAdd(dir) == -1)
+        perror("Imposible aniadir");
+}
+
+void EliminarDelPath(char *dir)
+{
+    if (dir == NULL)
+        PathPrint();
+    else if (PathDel(dir) == -1)
+        perror("Imposible eliminar");
+}
+
+void MostrarDirActual(void)
+{
+    char dir[MAXNOMBRE];
+
+    if (getcwd(dir, MAXNOMBRE) == NULL)
+        perror("Imposible obtener directorio");
+    else
+        printf("%s\n", dir);
+}
+
+int ComprobarSegundoPlano(char *tr[])
+{
+    int i;
+    for (i = 0; tr[i] != NULL; i++)
+        if (!strcmp(tr[i], "&")) {   /* & indica segundo plano */
+            tr[i] = NULL;            /* es el ultimo argumento */
+            return i;
+        }
+    return 0;
+}
+
+void Proceso(char *tr[], int splano)
+{
+    pid_t pid;
+    int background = splano || ComprobarSegundoPlano(tr);
+
+    if (tr[0] == NULL)
+        return;
+    if ((pid = fork()) == -1) {
+        perror("Imposible crear proceso");
+        return;
+    }
+    if (pid == 0) {              /* proceso hijo */
+        Cmd_exec(tr);
+        exit(255);               /* por si falla exec */
+    }
+    if (!background)
+        waitpid(pid, NULL, 0);
+}
+
+/********************** COMANDOS DEL SHELL **************************/
+
+void Cmd_fin(char *arg[])
+{
+    (void)arg;
+    PathClear();                 /* libera la memoria del path */
+    exit(0);
+}
+
+void Cmd_authors(char *arg[])
+{
+    if (arg[0] == NULL) {
+        printf("%s : %s\n", AUTOR1_NOMBRE, AUTOR1_LOGIN);
+        printf("%s : %s\n", AUTOR2_NOMBRE, AUTOR2_LOGIN);
+    } else if (!strcmp(arg[0], "-l")) {
+        printf("%s\n%s\n", AUTOR1_LOGIN, AUTOR2_LOGIN);
+    } else if (!strcmp(arg[0], "-n")) {
+        printf("%s\n%s\n", AUTOR1_NOMBRE, AUTOR2_NOMBRE);
+    } else {
+        printf("Uso: authors [-l|-n]\n");
+    }
+}
+
+void Cmd_pid(char *arg[])
+{
+    if (arg[0] == NULL)
+        printf("El pid del proceso es %d\n", (int)getpid());
+    else if (!strcmp(arg[0], "-p"))
+        printf("El pid del proceso padre es %d\n", (int)getppid());
+    else
+        printf("Uso: pid [-p]\n");
+}
+
+void Cmd_date(char *arg[])
+{
+    char hora[16], fecha[16];
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+
+    if (tm == NULL) {
+        perror("Imposible obtener la fecha");
+        return;
+    }
+    strftime(hora, sizeof(hora), "%H:%M:%S", tm);
+    strftime(fecha, sizeof(fecha), "%d/%m/%Y", tm);
+
+    if (arg[0] == NULL)
+        printf("%s\n%s\n", hora, fecha);
+    else if (!strcmp(arg[0], "-d"))
+        printf("%s\n", fecha);
+    else if (!strcmp(arg[0], "-t"))
+        printf("%s\n", hora);
+    else
+        printf("Uso: date [-d|-t]\n");
+}
+
+void Cmd_sysinfo(char *arg[]) {
+    struct utsname info;
+    if (uname(&info) == -1) {
+        perror("Imposible obtener sysinfo");
+        return;
+    }
+    printf("Sistema: %s\n", info.sysname);
+    printf("Nodename: %s\n", info.nodename);
+    printf("Release: %s\n", info.release);
+    printf("Version: %s\n", info.version);
+    printf("Machine: %s\n", info.machine);
+}
+
+void Cmd_help(char *arg[])
+{
+    if (arg[0] == NULL) {
+        printf("Uso: help [comando]\n\n");
+        printf("Comandos disponibles:\n");
+        printf("  exit  bye  authors  pid  date  sysinfo  help  chdir  pwd\n");
+        printf("  open  close  listopen\n");
+        printf("  exec  pplano  splano  path  importpath  where\n");
+        printf("\nEscriba 'help comando' para obtener informacion detallada.\n");
+    } else if (!strcmp(arg[0], "exit") || !strcmp(arg[0], "bye")) {
+        printf("exit | bye\n  Finaliza la ejecucion de la shell.\n");
+    } else if (!strcmp(arg[0], "authors")) {
+        printf("authors [-l|-n]\n"
+               "  Muestra los nombres y logins de los autores.\n"
+               "  -l: solo los logins.\n  -n: solo los nombres.\n");
+    } else if (!strcmp(arg[0], "pid")) {
+        printf("pid [-p]\n"
+               "  Muestra el pid de la shell.\n"
+               "  -p: muestra el pid del proceso padre.\n");
+    } else if (!strcmp(arg[0], "date")) {
+        printf("date [-d|-t]\n"
+               "  Muestra la fecha y la hora actuales.\n"
+               "  -d: solo la fecha (DD/MM/YYYY).\n  -t: solo la hora (hh:mm:ss).\n");
+    } else if (!strcmp(arg[0], "sysinfo")) {
+        printf("sysinfo\n  Muestra informacion sobre la maquina (como uname -a).\n");
+    } else if (!strcmp(arg[0], "help")) {
+        printf("help [comando]\n  Lista los comandos o da ayuda sobre uno.\n");
+    } else if (!strcmp(arg[0], "chdir")) {
+        printf("chdir [dir]\n"
+               "  Sin argumentos muestra el directorio actual.\n"
+               "  Con dir, cambia el directorio de trabajo de la shell.\n");
+    } else if (!strcmp(arg[0], "pwd")) {
+        printf("pwd\n  Muestra el directorio actual de trabajo.\n");
+    } else if (!strcmp(arg[0], "open")) {
+        printf("open [fichero] [modos]\n"
+               "  Abre un fichero y lo anade a la lista de ficheros abiertos.\n"
+               "  Modos: cr (O_CREAT), ex (O_EXCL), ro (O_RDONLY), wo (O_WRONLY),\n"
+               "         rw (O_RDWR), ap (O_APPEND), tr (O_TRUNC).\n"
+               "  Sin argumentos muestra la lista de ficheros abiertos.\n");
+    } else if (!strcmp(arg[0], "close")) {
+        printf("close [df]\n"
+               "  Cierra el descriptor df y lo elimina de la lista.\n"
+               "  Sin argumentos muestra la lista de ficheros abiertos.\n");
+    } else if (!strcmp(arg[0], "listopen")) {
+        printf("listopen\n  Muestra la lista de ficheros abiertos por la shell.\n");
+    } else if (!strcmp(arg[0], "path")) {
+        printf("path [-add dir|-del dir|-show|-clear|-import]\n"
+               "  Gestiona la lista de directorios donde se buscan ejecutables.\n");
+    } else if (!strcmp(arg[0], "importpath")) {
+        printf("importpath\n  Importa los directorios de la variable PATH.\n");
+    } else if (!strcmp(arg[0], "where")) {
+        printf("where ejecutable\n  Indica donde esta el ejecutable en el path.\n");
+    } else if (!strcmp(arg[0], "exec")) {
+        printf("exec prog [args]\n  Ejecuta prog sustituyendo a la shell.\n");
+    } else if (!strcmp(arg[0], "pplano") || !strcmp(arg[0], "splano")) {
+        printf("pplano|splano prog [args]\n"
+               "  Ejecuta prog en primer plano (pplano) o en segundo plano (splano).\n");
+    } else {
+        printf("Comando '%s' no encontrado o no disponible.\n", arg[0]);
+    }
+}
+
+void Cmd_chdir(char *arg[])
+{
+    if (arg[0] == NULL)
+        MostrarDirActual();
+    else if (chdir(arg[0]) == -1)
+        perror("Imposible cambiar directorio");
+}
+
+void Cmd_pwd(char *arg[])
+{
+    (void)arg;
+    MostrarDirActual();
+}
+
+void Cmd_open(char *arg[])
+{
+    int i, df, flags = 0, acceso = O_RDONLY;
+    char modos[64] = "";
+    size_t len = 0;
+
+    if (arg[0] == NULL) {                 /* sin argumentos: lista */
+        printFList(&openFiles);
+        return;
+    }
+
+    for (i = 1; arg[i] != NULL; i++) {
+        if (!strcmp(arg[i], "cr")) flags |= O_CREAT;
+        else if (!strcmp(arg[i], "ex")) flags |= O_EXCL;
+        else if (!strcmp(arg[i], "ap")) flags |= O_APPEND;
+        else if (!strcmp(arg[i], "tr")) flags |= O_TRUNC;
+        else if (!strcmp(arg[i], "ro")) acceso = O_RDONLY;
+        else if (!strcmp(arg[i], "wo")) acceso = O_WRONLY;
+        else if (!strcmp(arg[i], "rw")) acceso = O_RDWR;
+        else {
+            printf("Modo no valido: %s\n", arg[i]);
+            return;
+        }
+        if (len + 4 < sizeof(modos))      /* nunca se desborda modos[] */
+            len += snprintf(modos + len, sizeof(modos) - len, "%s%s",
+                            len ? " " : "", arg[i]);
+    }
+    if (len == 0)
+        snprintf(modos, sizeof(modos), "ro");
+
+    if ((df = open(arg[0], flags | acceso, 0666)) == -1) {
+        perror("Imposible abrir fichero");
+        return;
+    }
+    insertFList(&openFiles, df, arg[0], modos);
+}
+
+void Cmd_close(char *arg[])
+{
+    char *fin;
+    long df;
+
+    if (arg[0] == NULL) {                 /* sin argumentos: lista */
+        printFList(&openFiles);
+        return;
+    }
+
+    df = strtol(arg[0], &fin, 10);
+    if (fin == arg[0] || *fin != '\0' || df < 0 || df > INT_MAX) {
+        printf("Descriptor no valido: %s\n", arg[0]);
+        return;
+    }
+    if (getFName(&openFiles, (int)df) == NULL) {
+        printf("El descriptor %ld no esta en la lista de ficheros abiertos\n", df);
+        return;
+    }
+    if (close((int)df) == -1) {
+        perror("Imposible cerrar descriptor");
+        return;
+    }
+    deleteFList(&openFiles, (int)df);
+}
+
+void Cmd_listopen(char *arg[])
+{
+    (void)arg;
+    printFList(&openFiles);
+}
+
+void Cmd_exec(char *arg[])
+{
+    char *ruta;
+
+    if (arg[0] == NULL) {
+        printf("Uso: exec programa [argumentos]\n");
+        return;
+    }
+    if ((ruta = Ejecutable(arg[0])) == NULL) {
+        errno = ENOENT;
+        perror("Imposible ejecutar");
+        return;
+    }
+    if (execv(ruta, arg) == -1)
+        perror("Imposible ejecutar");
+}
+
+void Cmd_splano(char *arg[])
+{
+    Proceso(arg, 1);
+}
+
+void Cmd_pplano(char *arg[])
+{
+    Proceso(arg, 0);
+}
+
+void Cmd_where(char *arg[])
+{
+    char *ruta;
+
+    if (arg[0] == NULL)
+        printf("Uso: where ejecutable. Indica donde esta ejecutable en el path\n");
+    else if ((ruta = Ejecutable(arg[0])) == NULL)
+        printf("%s no esta en el path\n", arg[0]);
+    else
+        printf("%s\n", ruta);
+}
+
+void Cmd_importpath(char *arg[])
+{
+    (void)arg;
+    if (PathAddPath() == -1)
+        perror("Imposible importar el path");
+}
+
+void Cmd_path(char *arg[])
+{
+    if (arg[0] == NULL)
+        PathPrint();
+    else if (!strcmp(arg[0], "-add"))
+        AniadirAlPath(arg[1]);
+    else if (!strcmp(arg[0], "-del"))
+        EliminarDelPath(arg[1]);
+    else if (!strcmp(arg[0], "-show"))
+        PathPrint();
+    else if (!strcmp(arg[0], "-clear"))
+        PathClear();
+    else if (!strcmp(arg[0], "-import"))
+        Cmd_importpath(NULL);
+    else
+        printf("Opciones validas: -add|-del|-show|-clear|-import\n");
+}
+
+/***************************** SHELL ********************************/
+
+void DecidirComando(char *tr[])
+{
+    int i;
+
+    if (tr[0] == NULL)
+        return;
+    for (i = 0; i < n_commands; i++)
+        if (!strcmp(commands[i].cmd_name, tr[0])) {
+            commands[i].handler(tr + 1);   /* sin el nombre del comando */
+            return;
+        }
+    Cmd_pplano(tr);   /* si no es un comando, es un ejecutable externo */
+}
+
+/* Trocea la linea en palabras. Devuelve cuantas hay (nunca mas de max-1)
+   y deja trozos[] terminado en NULL. */
+int TrocearCadena(char *cadena, char *trozos[], int max)
+{
+    int i = 0;
+    char *t = strtok(cadena, " \n\t\r");
+
+    while (t != NULL && i < max - 1) {
+        trozos[i++] = t;
+        t = strtok(NULL, " \n\t\r");
+    }
+    trozos[i] = NULL;
+    return i;
+}
+
+void ProcesarEntrada(char *entrada)
+{
+    char *tr[MAXTROZOS];
+
+    if (TrocearCadena(entrada, tr, MAXTROZOS) == 0)   /* linea vacia */
+        return;
+    DecidirComando(tr);
+}
+
+int main(int argc, char *argv[])
+{
+    char entrada[MAXENTRADA];
+    size_t n;
+    int c;
+
+    createFList(&openFiles);
+
+    if (argc < 2)
+        printf("Ejecutando con path vacio: %s -p para importar el path\n", argv[0]);
+    else if (!strcmp(argv[1], "-p"))
+        Cmd_importpath(NULL);
+
+    while (1) {
+        printf("-> ");
+        fflush(stdout);
+
+        if (fgets(entrada, MAXENTRADA, stdin) == NULL) {   /* Ctrl-D: fin */
+            printf("\n");
+            Cmd_fin(NULL);
+        }
+
+        n = strlen(entrada);
+        if (n == MAXENTRADA - 1 && entrada[n - 1] != '\n') {
+            /* linea demasiado larga: descartar lo que queda de ella */
+            while ((c = getchar()) != '\n' && c != EOF);
+            printf("Linea demasiado larga\n");
+            continue;
+        }
+        ProcesarEntrada(entrada);
+    }
+}
