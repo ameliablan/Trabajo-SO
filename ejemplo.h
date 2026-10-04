@@ -15,6 +15,8 @@
 #include <sys/stat.h> // Estructuras y macros para consultar información de archivos y permisos (usado con stat o lstat).
 #include <fcntl.h> // Constantes para la apertura de ficheros (como cr, rw, etc.).
 #include <time.h> // Necesario para el date
+#include <sys/stat.h>
+#include <dirent.h>
 
 #include "path.h"
 
@@ -48,7 +50,13 @@ void Cmd_help(char *arg[]); // Muestra la ayuda general del shell o info. detall
 void Cmd_open(char *arg[]); //Abre un fichero con unos modos específicos y lo añade a la lista interna.
 void Cmd_close(char *arg[]); // Cierra un descriptor de fichero y lo elimina de la lista interna.
 void Cmd_listopen(char *arg[]); // Lista todos los ficheros que el shell mantiene abiertos actualmente.
-
+void Cmd_dup(char *arg[]);      // Duplica un descriptor y lo mete en la lista
+void Cmd_lseek(char *arg[]);    // Cambia la posición del puntero dentro de un archivo
+void Cmd_readstr(char *arg[]);  // Lee x bytes y los imprime por pantalla como texto
+void Cmd_writestr(char *arg[]); // Escribe un string directamente en un fichero abierto
+void Cmd_makefile(char *arg[]); // Crea un archivo vacío en blanco
+void Cmd_makedir(char *arg[]);  // Crea un directorio/carpeta nueva
+void Cmd_delete(char *arg[]);   // Borra archivos o directorios vacíos
 
 
 #endif
