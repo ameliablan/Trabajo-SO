@@ -397,7 +397,7 @@ void Cmd_dup (char *arg[])
     char aux[MAXNOMBRE];
 
     if (arg[0] == NULL) {
-        Cmd_listopen(NULL); // Si no le pasamos nada lista los abiertos[cite: 5]
+        Cmd_listopen(NULL); // Si no le pasamos nada lista los abiertos
         return;
     }
 
@@ -409,7 +409,7 @@ void Cmd_dup (char *arg[])
     } else {
         // En vez de liarnos con fcntl, le ponemos un texto simple para el nombre
         sprintf(aux, "dup %d", df);
-        AnadirFicheroAbierto(nuevo_df, aux, O_RDWR); // Le metemos un modo por defecto[cite: 5]
+        AnadirFicheroAbierto(nuevo_df, aux, O_RDWR); // Le metemos un modo por defecto
         printf("Descriptor %d duplicado en %d\n", df, nuevo_df);
     }
 }
